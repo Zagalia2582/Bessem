@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider, useToastContext } from './contexts/ToastContext';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import CatalogSection from './components/CatalogSection';
@@ -19,6 +20,7 @@ type ActiveSection = 'hero' | 'catalog' | 'simulator' | 'history' | 'dashboard' 
 
 function AppContent() {
   const { user } = useAuth();
+  const { toast } = useToastContext();
   const [activeSection, setActiveSection] = useState<ActiveSection>('hero');
 
   // Simulator state
@@ -44,7 +46,7 @@ function AppContent() {
     } else {
       setSavedQuotes([]);
     }
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply default rates from company settings
   useEffect(() => {
@@ -63,7 +65,7 @@ function AppContent() {
       if (data) {
         setCompanySettings(prev => ({ ...prev, ...data }));
       }
-    } catch (e) {
+    } catch {
       // Use defaults if no settings yet
     }
   };
@@ -71,12 +73,12 @@ function AppContent() {
   const loadQuotes = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('quotes')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      if (data) {
+      if (data && !error) {
         const parsed = data.map(q => ({
           ...q,
           items: typeof q.items === 'string' ? JSON.parse(q.items) : q.items,
@@ -85,6 +87,7 @@ function AppContent() {
       }
     } catch (e) {
       console.error('Error loading quotes:', e);
+      toast.networkError('Impossible de charger les devis.');
     }
   };
 
@@ -92,12 +95,14 @@ function AppContent() {
     setQuoteItems(prev => {
       const existing = prev.find(i => i.catalog_item_id === item.id);
       if (existing) {
+        toast.itemAlreadyIn(item.name);
         return prev.map(i =>
           i.catalog_item_id === item.id
             ? { ...i, quantity: i.quantity + 1 }
             : i
         );
       }
+      toast.itemAdded(item.name, () => setActiveSection('simulator'));
       const newItem: QuoteLineItem = {
         id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         catalog_item_id: item.id,
@@ -108,7 +113,7 @@ function AppContent() {
       };
       return [...prev, newItem];
     });
-  }, []);
+  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStartSimulation = useCallback(({ projectName: pn, clientName: cn }: { projectName: string; clientName: string }) => {
     setProjectName(pn);
@@ -148,18 +153,29 @@ function AppContent() {
         };
 
         if (existing) {
-          await supabase.from('company_settings').update(payload).eq('user_id', user.id);
+          const { error } = await supabase.from('company_settings').update(payload).eq('user_id', user.id);
+          if (error) throw error;
         } else {
-          await supabase.from('company_settings').insert({ ...payload, created_at: new Date().toISOString() });
+          const { error } = await supabase.from('company_settings').insert({ ...payload, created_at: new Date().toISOString() });
+          if (error) throw error;
         }
+        toast.settingsSaved();
+      } else {
+        toast.settingsSaved();
       }
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      toast.networkError('Impossible de sauvegarder les paramètres.');
     } finally {
       setIsSavingSettings(false);
     }
   };
 
   const handleSaveQuote = async () => {
-    if (quoteItems.length === 0) return;
+    if (quoteItems.length === 0) {
+      toast.warning('Devis vide', { message: 'Ajoutez au moins un article avant de sauvegarder.' });
+      return;
+    }
     setIsSavingQuote(true);
     try {
       const laborHours = estimateLaborHours(quoteItems);
@@ -168,7 +184,7 @@ function AppContent() {
       const now = new Date().toISOString();
       const validUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const quoteData = {
+      const quoteData: Quote = {
         id: `quote-${Date.now()}`,
         quote_number: quoteNumber,
         project_name: projectName || 'Projet sans nom',
@@ -205,29 +221,37 @@ function AppContent() {
           const saved = { ...data, items: quoteItems };
           setSavedQuotes(prev => [saved, ...prev]);
         } else {
-          // Offline mode
+          // Offline fallback
           setSavedQuotes(prev => [quoteData, ...prev]);
+          toast.offline();
         }
       } else {
-        // Store locally
         setSavedQuotes(prev => [quoteData, ...prev]);
+        toast.loginRequired(() => setActiveSection('hero'));
       }
 
-      alert(`✅ Devis ${quoteNumber} sauvegardé avec succès !`);
+      toast.quoteSaved(quoteNumber);
+    } catch (err) {
+      console.error('Error saving quote:', err);
+      toast.networkError('La sauvegarde du devis a échoué.');
     } finally {
       setIsSavingQuote(false);
     }
   };
 
   const handleGeneratePDFFromSimulator = () => {
-    if (quoteItems.length === 0) return;
+    if (quoteItems.length === 0) {
+      toast.warning('Devis vide', { message: 'Ajoutez des articles avant de générer un PDF.' });
+      return;
+    }
     const laborHours = estimateLaborHours(quoteItems);
     const totals = calculateQuoteTotals(quoteItems, marginRate, laborRate, laborHours, companySettings.tva_rate);
     const now = new Date().toISOString();
+    const quoteNumber = generateQuoteNumber();
 
     const quote: Quote = {
       id: 'preview',
-      quote_number: generateQuoteNumber(),
+      quote_number: quoteNumber,
       project_name: projectName || 'Projet',
       client_name: clientName || 'Client',
       client_email: '',
@@ -247,10 +271,12 @@ function AppContent() {
     };
 
     generateQuotePDF(quote, companySettings);
+    toast.pdfGenerated(quoteNumber);
   };
 
   const handleGeneratePDFFromHistory = (quote: Quote) => {
     generateQuotePDF(quote, companySettings);
+    toast.pdfGenerated(quote.quote_number);
   };
 
   const handleLoadQuote = (quote: Quote) => {
@@ -259,9 +285,7 @@ function AppContent() {
     setMarginRate(quote.margin_rate);
     setLaborRate(quote.labor_rate);
 
-    // Rebuild line items from stored data
     const items: QuoteLineItem[] = quote.items.map(item => {
-      // Try to find catalog item or use stored data
       const catalogItem = CATALOG_ITEMS.find(c => c.id === item.catalog_item_id) || item.catalog_item;
       return {
         ...item,
@@ -272,20 +296,48 @@ function AppContent() {
 
     setQuoteItems(items);
     setActiveSection('simulator');
+    toast.info('Devis chargé', {
+      message: `${quote.quote_number} — ${quote.project_name} (${items.length} article${items.length > 1 ? 's' : ''})`,
+      duration: 3500,
+    });
   };
 
   const handleDeleteQuote = async (id: string) => {
-    setSavedQuotes(prev => prev.filter(q => q.id !== id));
+    const q = savedQuotes.find(s => s.id === id);
+    setSavedQuotes(prev => prev.filter(s => s.id !== id));
     if (user) {
-      await supabase.from('quotes').delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('quotes').delete().eq('id', id).eq('user_id', user.id);
+      if (error) {
+        toast.networkError('Impossible de supprimer le devis.');
+        if (q) setSavedQuotes(prev => [q, ...prev]); // rollback
+        return;
+      }
     }
+    toast.deleted(q ? `Devis ${q.quote_number} supprimé` : 'Devis supprimé');
+  };
+
+  const STATUS_LABELS: Record<QuoteStatus, string> = {
+    draft: 'Brouillon',
+    sent: 'Envoyé',
+    accepted: 'Accepté',
+    rejected: 'Refusé',
+    expired: 'Expiré',
   };
 
   const handleUpdateQuoteStatus = async (id: string, status: QuoteStatus) => {
     setSavedQuotes(prev => prev.map(q => q.id === id ? { ...q, status } : q));
     if (user) {
-      await supabase.from('quotes').update({ status, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase
+        .from('quotes')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id);
+      if (error) {
+        toast.networkError('Mise à jour du statut échouée.');
+        return;
+      }
     }
+    toast.statusUpdated(STATUS_LABELS[status] ?? status);
   };
 
   const handleNavigate = useCallback((section: ActiveSection) => {
@@ -376,7 +428,7 @@ function AppContent() {
               <p style={{ fontFamily: 'Poppins', fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.6', maxWidth: '280px' }}>
                 Solution professionnelle de gestion d'installation gaz. Catalogue, devis, facturation et suivi de projets.
               </p>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
                 {['NF EN 1057', 'DTU 61.1', 'NF EN 331', 'ISO 9001'].map(norm => (
                   <span key={norm} style={{ background: 'rgba(237,137,54,0.15)', border: '1px solid rgba(237,137,54,0.3)', borderRadius: '4px', padding: '3px 7px', fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#ED8936' }}>
                     {norm}
@@ -448,7 +500,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { Quote, QuoteStatus } from '../data';
 import { STATUS_CONFIG, CATEGORY_CONFIG, formatCurrency, formatDate } from '../data';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface QuotesHistorySectionProps {
   quotes: Quote[];
@@ -270,11 +271,7 @@ export default function QuotesHistorySection({
                                 <Copy size={13} />
                               </button>
                               <button
-                                onClick={() => {
-                                  if (window.confirm(`Supprimer le devis ${quote.quote_number} ?`)) {
-                                    onDeleteQuote(quote.id);
-                                  }
-                                }}
+                                onClick={() => onDeleteQuote(quote.id)}
                                 style={{ background: '#FFF5F5', border: 'none', borderRadius: '6px', width: '28px', height: '28px', cursor: 'pointer', color: '#E53E3E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 title="Supprimer"
                               >
@@ -353,6 +350,7 @@ function QuoteDetailModal({ quote, onClose, onUpdateStatus, onLoadQuote, onGener
   onGeneratePDF: (q: Quote) => void;
   onDelete: (id: string) => void;
 }) {
+  const { toast } = useToastContext();
   const sc = STATUS_CONFIG[quote.status as QuoteStatus] || STATUS_CONFIG.draft;
 
   // Group items by category
@@ -486,14 +484,14 @@ function QuoteDetailModal({ quote, onClose, onUpdateStatus, onLoadQuote, onGener
               Télécharger PDF
             </button>
             <button
-              onClick={() => onLoadQuote(quote)}
+              onClick={() => { onLoadQuote(quote); onClose(); toast.info('Devis chargé dans le simulateur', { message: quote.quote_number, duration: 3000 }); }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '8px', border: '1px solid #9AE6B4', background: '#F0FFF4', color: '#276749', cursor: 'pointer', fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
             >
               <Copy size={14} />
               Dupliquer dans simulateur
             </button>
             <button
-              onClick={() => { if (window.confirm('Supprimer ce devis ?')) onDelete(quote.id); }}
+              onClick={() => { onDelete(quote.id); onClose(); }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '8px', border: '1px solid #FEB2B2', background: '#FFF5F5', color: '#E53E3E', cursor: 'pointer', fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px', marginLeft: 'auto' }}
             >
               <Trash2 size={14} />

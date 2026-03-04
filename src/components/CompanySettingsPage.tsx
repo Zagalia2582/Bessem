@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { CompanySettings } from '../data';
 import { DEFAULT_COMPANY_SETTINGS } from '../data';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface CompanySettingsPageProps {
   settings: CompanySettings;
@@ -14,6 +15,7 @@ interface CompanySettingsPageProps {
 }
 
 export default function CompanySettingsPage({ settings, onSave, isSaving = false }: CompanySettingsPageProps) {
+  const { toast } = useToastContext();
   const [form, setForm] = useState<CompanySettings>({ ...settings });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -29,16 +31,17 @@ export default function CompanySettingsPage({ settings, onSave, isSaving = false
     try {
       await onSave(form);
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => setSaved(false), 3500);
     } catch (err) {
-      setError('Erreur lors de la sauvegarde. Veuillez réessayer.');
+      const msg = 'Erreur lors de la sauvegarde. Veuillez réessayer.';
+      setError(msg);
+      toast.error('Sauvegarde échouée', { message: msg });
     }
   };
 
   const resetToDefault = () => {
-    if (window.confirm('Réinitialiser tous les paramètres aux valeurs par défaut ?')) {
-      setForm({ ...DEFAULT_COMPANY_SETTINGS });
-    }
+    setForm({ ...DEFAULT_COMPANY_SETTINGS });
+    toast.info('Paramètres réinitialisés', { message: 'Les valeurs par défaut ont été restaurées. Cliquez sur Sauvegarder pour confirmer.' });
   };
 
   const InputField = ({ label, value, onChange, type = 'text', placeholder = '', required = false, help = '' }: {
