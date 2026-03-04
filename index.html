@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GazNetPro — Gestion Installation Gaz Professionnelle</title>
+    <meta name="description" content="Solution professionnelle de gestion d'installation gaz naturel. Catalogue 403+ références, simulateur de devis, PDF automatique, dashboard analytics. Devise DT Tunisien." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+      #root { min-height: 100vh; }
+      
+      /* Loading screen */
+      #loading-screen {
+        position: fixed; inset: 0;
+        background: linear-gradient(135deg, #0F172A, #1A365D, #2C5282);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        z-index: 9999; transition: opacity 0.5s ease;
+      }
+      #loading-screen.hidden { opacity: 0; pointer-events: none; }
+      .loading-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+      .loading-icon { background: linear-gradient(135deg, #ED8936, #F6AD55); border-radius: 14px; padding: 12px; }
+      .loading-name { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 28px; color: white; }
+      .loading-name span { color: #ED8936; }
+      .loading-subtitle { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.15em; margin-bottom: 32px; }
+      .loading-bar { width: 200px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+      .loading-fill { height: 100%; background: linear-gradient(to right, #ED8936, #F6AD55); border-radius: 2px; animation: loadAnim 1.5s ease-in-out forwards; }
+      @keyframes loadAnim { from { width: 0%; } to { width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <!-- Loading screen -->
+    <div id="loading-screen">
+      <div class="loading-logo">
+        <div class="loading-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2C8 2 4 4 4 8c0 3 2 5 4 7l4 7 4-7c2-2 4-4 4-7 0-4-4-6-8-6z"/>
+          </svg>
+        </div>
+        <div class="loading-name">GazNet<span>Pro</span></div>
+      </div>
+      <div class="loading-subtitle">SYSTÈME GESTION INSTALLATION GAZ</div>
+      <div class="loading-bar"><div class="loading-fill"></div></div>
+    </div>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const screen = document.getElementById('loading-screen');
+          if (screen) screen.classList.add('hidden');
+          setTimeout(() => { if (screen) screen.remove(); }, 500);
+        }, 1500);
+      });
+    </script>
+  </body>
+</html>
