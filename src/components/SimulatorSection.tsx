@@ -17,6 +17,14 @@ import { CSS } from '@dnd-kit/utilities';
 import type { QuoteLineItem, Category } from '../data';
 import { CATEGORY_CONFIG, formatCurrency, calculateQuoteTotals, estimateLaborHours } from '../data';
 
+export interface SimulatorExtraData {
+  clientEmail: string;
+  clientPhone: string;
+  clientAddress: string;
+  notes: string;
+  laborHours: number;
+}
+
 interface SimulatorSectionProps {
   items: QuoteLineItem[];
   setItems: (items: QuoteLineItem[]) => void;
@@ -28,8 +36,8 @@ interface SimulatorSectionProps {
   setMarginRate: (rate: number) => void;
   laborRate: number;
   setLaborRate: (rate: number) => void;
-  onGeneratePDF: () => void;
-  onSaveQuote: () => void;
+  onGeneratePDF: (extra: SimulatorExtraData) => void;
+  onSaveQuote: (extra: SimulatorExtraData) => void;
   defaultMarginRate?: number;
   defaultLaborRate?: number;
   defaultPaymentTerms?: string;
@@ -532,7 +540,7 @@ export default function SimulatorSection({
               )}
 
               <button
-                onClick={onGeneratePDF}
+                onClick={() => onGeneratePDF({ clientEmail, clientPhone, clientAddress, notes, laborHours: actualLaborHours })}
                 disabled={items.length === 0}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -549,7 +557,7 @@ export default function SimulatorSection({
               </button>
 
               <button
-                onClick={onSaveQuote}
+                onClick={() => onSaveQuote({ clientEmail, clientPhone, clientAddress, notes, laborHours: actualLaborHours })}
                 disabled={items.length === 0 || isSaving}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',

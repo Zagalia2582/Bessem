@@ -1,12 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration - replace with your project credentials
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+// ─── Supabase credentials ──────────────────────────────────────────────────
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('⚠️  Supabase env vars missing — check your .env file');
+}
 
-// Database types
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
+
+// ─── Database types ────────────────────────────────────────────────────────
 export type Database = {
   public: {
     Tables: {
@@ -33,6 +43,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
+        Insert: Omit<Database['public']['Tables']['company_settings']['Row'], 'id'>;
+        Update: Partial<Database['public']['Tables']['company_settings']['Insert']>;
       };
       quotes: {
         Row: {
@@ -44,7 +56,7 @@ export type Database = {
           client_email: string | null;
           client_phone: string | null;
           client_address: string | null;
-          items: string; // JSON
+          items: string; // JSON string
           margin_rate: number;
           labor_rate: number;
           labor_hours: number;
@@ -61,6 +73,8 @@ export type Database = {
           updated_at: string;
           valid_until: string;
         };
+        Insert: Omit<Database['public']['Tables']['quotes']['Row'], 'id'>;
+        Update: Partial<Database['public']['Tables']['quotes']['Insert']>;
       };
     };
   };

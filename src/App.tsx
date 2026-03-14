@@ -10,6 +10,7 @@ import QuotesHistorySection from './components/QuotesHistorySection';
 import CompanySettingsPage from './components/CompanySettingsPage';
 import { generateQuotePDF } from './lib/pdfGenerator';
 import type { CatalogItem, QuoteLineItem, Quote, CompanySettings, QuoteStatus } from './data';
+import type { SimulatorExtraData } from './components/SimulatorSection';
 import {
   DEFAULT_COMPANY_SETTINGS, generateQuoteNumber, calculateQuoteTotals,
   estimateLaborHours, CATALOG_ITEMS
@@ -171,14 +172,14 @@ function AppContent() {
     }
   };
 
-  const handleSaveQuote = async () => {
+  const handleSaveQuote = async (extra: SimulatorExtraData) => {
     if (quoteItems.length === 0) {
       toast.warning('Devis vide', { message: 'Ajoutez au moins un article avant de sauvegarder.' });
       return;
     }
     setIsSavingQuote(true);
     try {
-      const laborHours = estimateLaborHours(quoteItems);
+      const laborHours = extra.laborHours > 0 ? extra.laborHours : estimateLaborHours(quoteItems);
       const totals = calculateQuoteTotals(quoteItems, marginRate, laborRate, laborHours, companySettings.tva_rate);
       const quoteNumber = generateQuoteNumber();
       const now = new Date().toISOString();
@@ -189,14 +190,14 @@ function AppContent() {
         quote_number: quoteNumber,
         project_name: projectName || 'Projet sans nom',
         client_name: clientName || 'Client inconnu',
-        client_email: '',
-        client_phone: '',
-        client_address: '',
+        client_email: extra.clientEmail || '',
+        client_phone: extra.clientPhone || '',
+        client_address: extra.clientAddress || '',
         items: quoteItems,
         margin_rate: marginRate,
         labor_rate: laborRate,
         labor_hours: laborHours,
-        notes: '',
+        notes: extra.notes || '',
         payment_terms: companySettings.payment_terms,
         status: 'draft' as QuoteStatus,
         created_at: now,
@@ -239,12 +240,12 @@ function AppContent() {
     }
   };
 
-  const handleGeneratePDFFromSimulator = () => {
+  const handleGeneratePDFFromSimulator = (extra: SimulatorExtraData) => {
     if (quoteItems.length === 0) {
       toast.warning('Devis vide', { message: 'Ajoutez des articles avant de générer un PDF.' });
       return;
     }
-    const laborHours = estimateLaborHours(quoteItems);
+    const laborHours = extra.laborHours > 0 ? extra.laborHours : estimateLaborHours(quoteItems);
     const totals = calculateQuoteTotals(quoteItems, marginRate, laborRate, laborHours, companySettings.tva_rate);
     const now = new Date().toISOString();
     const quoteNumber = generateQuoteNumber();
@@ -254,14 +255,14 @@ function AppContent() {
       quote_number: quoteNumber,
       project_name: projectName || 'Projet',
       client_name: clientName || 'Client',
-      client_email: '',
-      client_phone: '',
-      client_address: '',
+      client_email: extra.clientEmail || '',
+      client_phone: extra.clientPhone || '',
+      client_address: extra.clientAddress || '',
       items: quoteItems,
       margin_rate: marginRate,
       labor_rate: laborRate,
       labor_hours: laborHours,
-      notes: '',
+      notes: extra.notes || '',
       payment_terms: companySettings.payment_terms,
       status: 'draft',
       created_at: now,
