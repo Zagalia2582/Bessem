@@ -8,4 +8,9 @@ export default defineConfig({
     tailwindcss(),
   ],
   base: './',   // Required for Capacitor APK (file:// protocol)
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: true,
+  },
 })
